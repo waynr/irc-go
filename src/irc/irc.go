@@ -10,9 +10,9 @@ import (
 )
 
 type Conn struct {
-	conn  *net.TCPConn
-	read  chan string
-	write chan string
+	conn     *net.TCPConn
+	Received chan string
+	ToSend   chan string
 }
 
 func Dial(server string) (*Conn, error) {
@@ -26,9 +26,9 @@ func Dial(server string) (*Conn, error) {
 		return nil, err
 	}
 
-	r := make(chan string, 100)
-	w := make(chan string, 100)
-	c := &Conn{conn: conn, read: r, write: w}
+	r := make(chan string, 200)
+	w := make(chan string, 200)
+	c := &Conn{conn: conn, Received: r, ToSend: w}
 
 	// Reading task
 	go func() {
@@ -40,9 +40,9 @@ func Dial(server string) (*Conn, error) {
 				return
 			}
 			if strings.HasPrefix(data, "PING") {
-				c.write <- "PONG" + data[4:len(data)-2]
+				c.ToSend <- "PONG" + data[4:len(data)-2]
 			} else {
-				c.read <- data[0 : len(data)-2]
+				c.Received <- data[0 : len(data)-2]
 			}
 		}
 	}()
@@ -51,7 +51,7 @@ func Dial(server string) (*Conn, error) {
 	go func() {
 		w := bufio.NewWriter(conn)
 		for {
-			data, ok := <-c.write
+			data, ok := <-c.ToSend
 			if !ok {
 				return
 			}
@@ -70,13 +70,13 @@ func (c *Conn) Close() {
 }
 
 func (c *Conn) Write(data string) error {
-	c.write <- data
+	c.ToSend <- data
 	return nil
 }
 
 func (c *Conn) Read() (string, error) {
 	// blocks until message is available
-	data, ok := <-c.read
+	data, ok := <-c.Received
 	if !ok {
 		return "", errors.New("Read stream closed")
 	}

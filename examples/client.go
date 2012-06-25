@@ -1,12 +1,12 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"flag"
 	"bufio"
+	"flag"
+	"fmt"
+	"irc"
+	"os"
 	"strings"
-	"github.com/husio/go-irc"
 )
 
 var server *string = flag.String("server", "irc.freenode.net", "IRC server address")
@@ -34,9 +34,12 @@ func main() {
 		panic(err)
 	}
 
+    fmt.Printf("\n** For more information type `help` **\n\n")
+
 	defer c.Close()
 
 	c.Write("NICK " + *nick)
+	c.Write("USER bot * * :...")
 
 	// irc messages reader
 	go func() {
