@@ -2,16 +2,15 @@ package irc
 
 import (
 	"bufio"
-
+	"bytes"
 	"errors"
 	"log"
 	"net"
-	"strings"
 )
 
 type Conn struct {
 	conn     *net.TCPConn
-	Received chan string
+	Received chan *Message
 	ToSend   chan string
 }
 
@@ -26,7 +25,7 @@ func Dial(server string) (*Conn, error) {
 		return nil, err
 	}
 
-	r := make(chan string, 200)
+	r := make(chan *Message, 200)
 	w := make(chan string, 200)
 	c := &Conn{conn: conn, Received: r, ToSend: w}
 
@@ -39,10 +38,26 @@ func Dial(server string) (*Conn, error) {
 				log.Println("Read error: ", err)
 				return
 			}
-			if strings.HasPrefix(data, "PING") {
+			msg := ParseMessage(data[0 : len(data)-2])
+            c.Received <- msg
+			switch {
+			case bytes.Equal(msg.Command, []byte("PING")):
 				c.ToSend <- "PONG" + data[4:len(data)-2]
-			} else {
-				c.Received <- data[0 : len(data)-2]
+			case bytes.Equal(msg.Command, []byte("5")):
+				// RFC2812
+				// Sent by the server to a user to suggest an alternative
+				// server, sometimes used when the connection is refused
+				// because the server is already full. Also known as RPL_SLINE
+				// (AustHex), and RPL_REDIR
+                addr, err := net.ResolveTCPAddr("tcp", string(msg.Trailing))
+                if err != nil {
+                    panic(err)
+                }
+				conn, err := net.DialTCP("tcp", nil, addr)
+				if err != nil {
+					panic(err)
+				}
+				c.conn = conn
 			}
 		}
 	}()
@@ -74,11 +89,11 @@ func (c *Conn) Write(data string) error {
 	return nil
 }
 
-func (c *Conn) Read() (string, error) {
+func (c *Conn) Read() (*Message, error) {
 	// blocks until message is available
 	data, ok := <-c.Received
 	if !ok {
-		return "", errors.New("Read stream closed")
+		return nil, errors.New("Read stream closed")
 	}
 	return data, nil
 }

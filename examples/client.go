@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+    "bytes"
 	"flag"
 	"fmt"
 	"irc"
@@ -48,7 +49,11 @@ func main() {
 			if err != nil {
 				panic(fmt.Sprintf("client read error: %s", err))
 			}
-			fmt.Println("> ", msg)
+            if bytes.Equal(msg.Command, []byte("PRIVMSG")) {
+                fmt.Printf("%s:: %s -> %s\n", msg.Command, msg.Params, msg.Trailing)
+            } else {
+                fmt.Println("> ", msg.String())
+            }
 		}
 	}()
 
