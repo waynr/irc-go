@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-    "bytes"
+	"bytes"
 	"flag"
 	"fmt"
 	"irc"
@@ -16,6 +16,9 @@ var nick *string = flag.String("nick", "go-irc-client", "Nickname")
 
 var help = `
 ********************************************************************************
+
+quit                               - close the client
+
 
 JOIN #<name> 					   - join channel
 PRIVMSG #<channel name> :<message> - send message to given channel
@@ -32,43 +35,58 @@ func main() {
 	addr := fmt.Sprintf("%s:%v", *server, *port)
 	c, err := irc.Dial(addr)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
-    fmt.Printf("\n** For more information type `help` **\n\n")
+	fmt.Printf("\n** For more information type `help` **\n\n")
 
 	defer c.Close()
 
-	c.Write("NICK " + *nick)
-	c.Write("USER bot * * :...")
+	quit := make(chan bool)
+
+	c.ToSend <- "NICK " + *nick
+	c.ToSend <- "USER bot * * :..."
 
 	// irc messages reader
 	go func() {
 		for {
-			msg, err := c.Read()
-			if err != nil {
-				panic(fmt.Sprintf("client read error: %s", err))
+			select {
+			case err := <-c.Error:
+				fmt.Println("client read error", err)
+				quit <- true
+				return
+			case msg := <-c.Received:
+				if bytes.Equal(msg.Command, []byte("PRIVMSG")) {
+					fmt.Printf("%s:: %s %s -> %s\n",
+						msg.Command, msg.Params, msg.Prefix, msg.Trailing)
+				} else {
+					fmt.Println("> ", msg.String())
+				}
 			}
-            if bytes.Equal(msg.Command, []byte("PRIVMSG")) {
-                fmt.Printf("%s:: %s -> %s\n", msg.Command, msg.Params, msg.Trailing)
-            } else {
-                fmt.Println("> ", msg.String())
-            }
 		}
 	}()
 
 	// user input reader
-	in := bufio.NewReader(os.Stdin)
-	for {
-		data, err := in.ReadString('\n')
-		if err != nil {
-			panic(fmt.Sprintf("client write error: %s", err))
+	go func() {
+		in := bufio.NewReader(os.Stdin)
+		for {
+			data, err := in.ReadString('\n')
+			if err != nil {
+				fmt.Sprintf("client write error: %s", err)
+				return
+			}
+			data = strings.TrimSpace(data)
+			switch data {
+			case "help":
+				fmt.Println(help)
+			case "quit":
+				quit <- true
+			default:
+				c.ToSend <- data
+			}
 		}
-		data = strings.TrimSpace(data)
-		if data == "help" {
-			fmt.Println(help)
-		} else {
-			c.Write(data)
-		}
-	}
+	}()
+
+	<-quit
 }

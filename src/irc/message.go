@@ -7,7 +7,7 @@ import (
 type Message struct {
 	raw      string
 	Prefix   []byte
-	Command     []byte
+	Command  []byte
 	Params   []byte
 	Trailing []byte
 }
@@ -37,7 +37,7 @@ func ParseMessage(message string) *Message {
 	return &Message{
 		raw:      message,
 		Prefix:   prefix,
-		Command:     command,
+		Command:  command,
 		Params:   params,
 		Trailing: trailing,
 	}
@@ -52,5 +52,5 @@ func (msg *Message) Nick() []byte {
 }
 
 func (msg *Message) String() string {
-    return msg.raw
+	return msg.raw
 }

@@ -3,15 +3,28 @@ package irc
 import (
 	"bufio"
 	"bytes"
-	"errors"
+	"io"
 	"log"
 	"net"
+	"os"
 )
+
+const (
+	READ_CHAN_SIZE  = 32
+	WRITE_CHAN_SIZE = 32
+)
+
+var logger *log.Logger
+
+func init() {
+	logger = log.New(os.Stdout, "irc", log.Ltime)
+}
 
 type Conn struct {
 	conn     *net.TCPConn
 	Received chan *Message
 	ToSend   chan string
+	Error    chan error
 }
 
 func Dial(server string) (*Conn, error) {
@@ -25,21 +38,30 @@ func Dial(server string) (*Conn, error) {
 		return nil, err
 	}
 
-	r := make(chan *Message, 200)
-	w := make(chan string, 200)
-	c := &Conn{conn: conn, Received: r, ToSend: w}
+	c := &Conn{
+		conn:     conn,
+		Received: make(chan *Message, READ_CHAN_SIZE),
+		ToSend:   make(chan string, WRITE_CHAN_SIZE),
+		Error:    make(chan error),
+	}
 
 	// Reading task
 	go func() {
 		r := bufio.NewReader(conn)
+		defer logger.Println("Stopping reading task")
+
 		for {
 			data, err := r.ReadString('\n')
 			if err != nil {
-				log.Println("Read error: ", err)
+                if err != io.EOF {
+                    logger.Println("Read error: ", err)
+                    c.Error <- err
+                }
+                c.Close()
 				return
 			}
 			msg := ParseMessage(data[0 : len(data)-2])
-            c.Received <- msg
+			c.Received <- msg
 			switch {
 			case bytes.Equal(msg.Command, []byte("PING")):
 				c.ToSend <- "PONG" + data[4:len(data)-2]
@@ -49,13 +71,17 @@ func Dial(server string) (*Conn, error) {
 				// server, sometimes used when the connection is refused
 				// because the server is already full. Also known as RPL_SLINE
 				// (AustHex), and RPL_REDIR
-                addr, err := net.ResolveTCPAddr("tcp", string(msg.Trailing))
-                if err != nil {
-                    panic(err)
-                }
+				addr, err := net.ResolveTCPAddr("tcp", string(msg.Trailing))
+				if err != nil {
+					c.Error <- err
+                    c.Close()
+					return
+				}
 				conn, err := net.DialTCP("tcp", nil, addr)
 				if err != nil {
-					panic(err)
+					c.Error <- err
+                    c.Close()
+					return
 				}
 				c.conn = conn
 			}
@@ -65,35 +91,26 @@ func Dial(server string) (*Conn, error) {
 	// Writing task
 	go func() {
 		w := bufio.NewWriter(conn)
-		for {
-			data, ok := <-c.ToSend
-			if !ok {
-				return
-			}
-			_, err := w.WriteString(data + "\r\n")
-			if err != nil {
-				log.Println("Write error: ", err)
-			}
-			w.Flush()
-		}
+        for data := range c.ToSend {
+            if _, err := w.WriteString(data); err != nil {
+                logger.Println("Write error: ", err)
+                c.Error <- err
+                return
+            }
+            if _, err := w.WriteString("\r\n"); err != nil {
+                logger.Println("Write error: ", err)
+                c.Error <- err
+                return
+            }
+            w.Flush()
+        }
 	}()
 
 	return c, nil
 }
 
 func (c *Conn) Close() {
-}
-
-func (c *Conn) Write(data string) error {
-	c.ToSend <- data
-	return nil
-}
-
-func (c *Conn) Read() (*Message, error) {
-	// blocks until message is available
-	data, ok := <-c.Received
-	if !ok {
-		return nil, errors.New("Read stream closed")
-	}
-	return data, nil
+    c.conn.Close()
+    close(c.ToSend)
+    close(c.Received)
 }
