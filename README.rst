@@ -8,9 +8,9 @@ see the examples_ directory
 How to use it?
 --------------
 
- * connect: `c, _ := irc.Dial("irc.freenode.net:6667")`
- * write: `c.ToSend <- "JOIN #mychan"`
- * read: `msg := <-c.Received`
+* connect: `c, _ := irc.Dial("irc.freenode.net:6667")`
+* write: `c.ToSend <- "JOIN #mychan"`
+* read: `msg := <-c.Received`
 
 
 .. _goty: https://github.com/RecursiveForest/goty.git
