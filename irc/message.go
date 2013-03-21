@@ -2,19 +2,33 @@ package irc
 
 import (
 	"bytes"
+	"fmt"
 )
 
 type Message struct {
-	raw      string
+	raw      []byte
 	Prefix   []byte
 	Command  []byte
 	Params   []byte
 	Trailing []byte
 }
 
-func ParseMessage(message string) *Message {
+func ParseMessage(message []byte) (*Message, error) {
+	var err error
+
+	defer func () {
+		x := recover()
+		if x != nil {
+			err = fmt.Errorf("Parsing error: %v", x)
+		}
+	}()
+	msg := parse(message)
+	return msg, err
+}
+
+func parse(message []byte) *Message {
 	// :<prefix> <command> <params> :<trailing>
-	msg := []byte(message)
+	msg := message
 	var prefix, params, trailing []byte
 
 	if bytes.HasPrefix(msg, []byte(":")) {
@@ -52,5 +66,5 @@ func (msg *Message) Nick() []byte {
 }
 
 func (msg *Message) String() string {
-	return msg.raw
+	return string(msg.raw)
 }

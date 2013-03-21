@@ -2,15 +2,16 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"irc"
+	"log"
 	"os"
 	"strings"
+
+	"../irc"
 )
 
-var server *string = flag.String("server", "irc.freenode.net", "IRC server address")
+var host *string = flag.String("host", "irc.freenode.net", "IRC server address")
 var port *int = flag.Int("port", 6667, "IRC server port")
 var nick *string = flag.String("nick", "go-irc-client", "Nickname")
 
@@ -32,61 +33,51 @@ More info: http://tools.ietf.org/html/rfc1459
 func main() {
 	flag.Parse()
 
-	addr := fmt.Sprintf("%s:%v", *server, *port)
+	addr := fmt.Sprintf("%s:%v", *host, *port)
 	c, err := irc.Dial(addr)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
+	defer c.Close()
 
 	fmt.Printf("\n** For more information type `help` **\n\n")
 
-	defer c.Close()
+	if err := c.Send("NICK " + *nick); err != nil {
+		log.Fatal(err)
+	}
+	if err := c.Send("USER bot * * :..."); err != nil {
+		log.Fatal(err)
+	}
 
-	quit := make(chan bool)
-
-	c.ToSend <- "NICK " + *nick
-	c.ToSend <- "USER bot * * :..."
-
-	// irc messages reader
+	// reader
 	go func() {
 		for {
-			select {
-			case err := <-c.Error:
-				fmt.Println("client read error", err)
-				quit <- true
-				return
-			case msg := <-c.Received:
-				if bytes.Equal(msg.Command, []byte("PRIVMSG")) {
-					fmt.Printf("%s:: %s %s -> %s\n",
-						msg.Command, msg.Params, msg.Prefix, msg.Trailing)
-				} else {
-					fmt.Println("> ", msg.String())
-				}
-			}
-		}
-	}()
-
-	// user input reader
-	go func() {
-		in := bufio.NewReader(os.Stdin)
-		for {
-			data, err := in.ReadString('\n')
+			msg, err := c.ReadMessage()
 			if err != nil {
-				fmt.Sprintf("client write error: %s", err)
-				return
+				log.Fatalf("Error reading message: %s", err)
 			}
-			data = strings.TrimSpace(data)
-			switch data {
-			case "help":
-				fmt.Println(help)
-			case "quit":
-				quit <- true
-			default:
-				c.ToSend <- data
-			}
+			fmt.Printf("[message] %s\n", msg)
 		}
 	}()
 
-	<-quit
+	// writer
+	in := bufio.NewReader(os.Stdin)
+	for {
+		data, err := in.ReadString('\n')
+		if err != nil {
+			log.Fatal("Client write error: %s", err)
+		}
+		data = strings.TrimSpace(data)
+		switch data {
+		case "help":
+			fmt.Println(help)
+		case "quit":
+			return
+		default:
+			err := c.Send(data)
+			if err != nil {
+				log.Fatal("Sending message error: %s", err)
+			}
+		}
+	}
 }
