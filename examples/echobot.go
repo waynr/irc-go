@@ -30,16 +30,16 @@ func main() {
 		os.Exit(2)
 	}
 
-	addr := fmt.Sprintf("%s:%d", *host, *port)
-	c, err := irc.Dial(addr)
+	c, err := irc.Connect(*host, *port)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer c.Close()
 
-	if _, err := fmt.Fprintf(c, "NICK %s", *nick); err != nil {
+	if err := c.Send("NICK %s", *nick); err != nil {
 		log.Fatal(err)
 	}
-	if _, err := fmt.Fprintf(c, "USER bot * * :..."); err != nil {
+	if err := c.Send("USER bot * * :..."); err != nil {
 		log.Fatal(err)
 	}
 
@@ -48,29 +48,32 @@ func main() {
 			name = "#" + name
 		}
 		fmt.Printf("[join] %s\n", name)
-		fmt.Fprintf(c, "JOIN %s", name)
+		if err := c.Send("JOIN %s", name); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	mynick := []byte(*nick)
 	privcmd := []byte("PRIVMSG")
 	for {
-		msg, err := c.ReadMessage()
-		if err != nil {
-			log.Fatalf("ReadMessage error: %s", err)
-		}
-		fmt.Printf("[message] %s\n", msg)
+		select {
+		case err := <-c.Error:
+			log.Fatalf("IRC client error: %s", err)
+		case msg := <-c.Received:
+			fmt.Printf("[message] %s\n", msg)
 
-		if bytes.Equal(msg.Command, privcmd) && bytes.HasPrefix(msg.Trailing, mynick) && len(msg.Trailing) > len(mynick)+2 {
+			if bytes.Equal(msg.Command, privcmd) && bytes.HasPrefix(msg.Trailing, mynick) && len(msg.Trailing) > len(mynick)+2 {
 
-			text := msg.Trailing[len(mynick)+2:]
-			if bytes.Equal(text, []byte("foo")) {
-				text = []byte("bar ;)")
-			}
+				text := msg.Trailing[len(mynick)+2:]
+				if bytes.Equal(text, []byte("foo")) {
+					text = []byte("bar ;)")
+				}
 
-			resp := fmt.Sprintf("PRIVMSG %s :%s: %s", msg.Params, msg.Nick(), text)
-			fmt.Printf("[echo response] %s\n", resp)
-			if err := c.Send(resp); err != nil {
-				log.Fatal("Sending echo error: %s", err)
+				resp := fmt.Sprintf("PRIVMSG %s :%s: %s", msg.Params, msg.Nick(), text)
+				fmt.Printf("[echo response] %s\n", resp)
+				if err := c.Send(resp); err != nil {
+					log.Fatal("Sending echo error: %s", err)
+				}
 			}
 		}
 	}

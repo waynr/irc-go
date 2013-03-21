@@ -33,8 +33,7 @@ More info: http://tools.ietf.org/html/rfc1459
 func main() {
 	flag.Parse()
 
-	addr := fmt.Sprintf("%s:%v", *host, *port)
-	c, err := irc.Dial(addr)
+	c, err := irc.Connect(*host, *port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,7 +41,7 @@ func main() {
 
 	fmt.Printf("\n** For more information type `help` **\n\n")
 
-	if err := c.Send("NICK " + *nick); err != nil {
+	if err := c.Send("NICK %s", nick); err != nil {
 		log.Fatal(err)
 	}
 	if err := c.Send("USER bot * * :..."); err != nil {
@@ -52,11 +51,12 @@ func main() {
 	// reader
 	go func() {
 		for {
-			msg, err := c.ReadMessage()
-			if err != nil {
-				log.Fatalf("Error reading message: %s", err)
+			select {
+			case err := <-c.Error:
+				log.Fatalf("IRC client error: %s", err)
+			case msg := <-c.Received:
+				fmt.Printf("[message] %s\n", msg)
 			}
-			fmt.Printf("[message] %s\n", msg)
 		}
 	}()
 

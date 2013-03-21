@@ -53,7 +53,7 @@ func TestMessage(t *testing.T) {
 	}
 	defer cli.Close()
 
-    line := []byte(":Foo!bar@s1.zz.com PRIVMSG #chan :woot\r\n")
+    line := []byte(":Foo!bar@s1.zz.com PRIVMSG #chan :woot")
 	cli.Write(line)
 	m, err := cli.ReadMessage()
 	if err != nil {

@@ -3,6 +3,7 @@ package irc
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"net"
 )
 
@@ -67,8 +68,8 @@ func (c *Conn) Write(msg []byte) (int, error) {
 	return total, err
 }
 
-func (c *Conn) Send(msg string) error {
-    _, err := c.Write([]byte(msg))
+func (c *Conn) Send(msg string, args ...interface{}) error {
+    _, err := fmt.Fprintf(c, msg, args...)
     return err
 }
 
