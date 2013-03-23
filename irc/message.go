@@ -16,7 +16,7 @@ type Message struct {
 func ParseMessage(message []byte) (*Message, error) {
 	var err error
 
-	defer func () {
+	defer func() {
 		x := recover()
 		if x != nil {
 			err = fmt.Errorf("Parsing error: %v", x)
@@ -67,4 +67,8 @@ func (msg *Message) Nick() []byte {
 
 func (msg *Message) String() string {
 	return string(msg.raw)
+}
+
+func (msg *Message) Chunks() (prefix, command, params, trailing []byte) {
+	return msg.Prefix, msg.Command, msg.Params, msg.Trailing
 }
