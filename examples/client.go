@@ -41,7 +41,7 @@ func main() {
 
 	fmt.Printf("\n** For more information type `help` **\n\n")
 
-	if err := c.Send("NICK %s", nick); err != nil {
+	if err := c.Send("NICK %s", *nick); err != nil {
 		log.Fatal(err)
 	}
 	if err := c.Send("USER bot * * :..."); err != nil {
