@@ -1,80 +1,89 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"time"
 
-	"../irc"
+	"github.com/husio/go-irc"
 )
 
-var host *string = flag.String("host", "irc.freenode.net", "IRC server address")
-var port *int = flag.Int("port", 6667, "IRC server port")
-var nick *string = flag.String("nick", "go-echobot", "Nickname")
-
-const usage = `Usage:
-
-%s [<flags>] <channel name1> [<channel name 2>], ...
-
-`
+var (
+	address = flag.String("address", "irc.freenode.net:6667", "IRC server address")
+	nick    = flag.String("nick", "gobot", "User nick")
+	name    = flag.String("name", "GoBot", "User name")
+	verbose = flag.Bool("verbose", false, "Print all messages to stdout")
+)
 
 func main() {
 	flag.Parse()
-
-	if len(flag.Args()) < 1 {
-		fmt.Printf(usage, os.Args[0])
-		flag.PrintDefaults()
-		os.Exit(2)
-	}
-
-	c, err := irc.Connect(*host, *port)
+	c, err := irc.Connect(*address)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
-	defer c.Close()
 
-	if err := c.Send("NICK %s", *nick); err != nil {
-		log.Fatal(err)
-	}
-	if err := c.Send("USER bot * * :..."); err != nil {
-		log.Fatal(err)
-	}
+	c.Send("NICK %s", *nick)
+	c.Send("USER %s * * :...", *name)
+	time.Sleep(time.Millisecond * 10)
 
 	for _, name := range flag.Args() {
 		if !strings.HasPrefix(name, "#") {
 			name = "#" + name
 		}
-		fmt.Printf("[join] %s\n", name)
-		if err := c.Send("JOIN %s", name); err != nil {
-			log.Fatal(err)
-		}
+		c.Send("JOIN %s", name)
 	}
 
-	mynick := []byte(*nick)
-	privcmd := []byte("PRIVMSG")
-	for {
-		select {
-		case err := <-c.Error:
-			log.Fatalf("IRC client error: %s", err)
-		case msg := <-c.Received:
-			fmt.Printf("[message] %s\n", msg)
-
-			if bytes.Equal(msg.Command, privcmd) && bytes.HasPrefix(msg.Trailing, mynick) && len(msg.Trailing) > len(mynick)+2 {
-
-				text := msg.Trailing[len(mynick)+2:]
-				if bytes.Equal(text, []byte("foo")) {
-					text = []byte("bar ;)")
-				}
-
-				resp := fmt.Sprintf("PRIVMSG %s :%s: %s", msg.Params, msg.Nick(), text)
-				fmt.Printf("[echo response] %s\n", resp)
-				if err := c.Send(resp); err != nil {
-					log.Fatal("Sending echo error: %s", err)
-				}
+	// read data from stdin and send it through the wire
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				log.Fatalln(err)
 			}
+			line = strings.TrimSpace(line)
+			if len(line) == 0 {
+				continue
+			}
+			c.Send(line)
+		}
+	}()
+
+	fmt.Print(`
+
+For IRC protocol description, read rfc1459: https://tools.ietf.org/html/rfc1459
+Some basics:
+
+	JOIN    <channel>{,<channel>} [<key>{,<key>}]
+	PRIVMSG <receiver>{,<receiver>} <text to be sent>
+	PART    <channel>{,<channel>}
+
+`)
+
+	// handle incomming messages
+	for {
+		message, err := c.ReadMessage()
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
+		if message.Command() == "PING" {
+			c.Send("PONG %s", message.Trailing())
+		}
+
+		if message.Command() == "PRIVMSG" {
+			if strings.HasPrefix(message.Trailing(), *nick) {
+				text := message.Trailing()[len(*nick):]
+				c.Send("PRIVMSG %s :echo! \"%s\"", message.Params()[0], text)
+			}
+		}
+
+		if *verbose {
+			log.Println(message)
 		}
 	}
 }
