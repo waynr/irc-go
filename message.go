@@ -13,14 +13,16 @@ var (
 // IRC message format:
 //
 // :<prefix> <command> <params> :<trailing>
+/*
 type Message interface {
 	Prefix() string
 	Command() string
 	Params() []string
 	Trailing() string
 }
+*/
 
-type message struct {
+type Message struct {
 	raw      string
 	prefix   string
 	command  string
@@ -28,9 +30,9 @@ type message struct {
 	trailing string
 }
 
-func ParseLine(raw string) (*message, error) {
+func ParseLine(raw string) (*Message, error) {
 	raw = strings.TrimSpace(raw)
-	m := &message{raw: raw}
+	m := &Message{raw: raw}
 	if raw[0] == ':' {
 		chunks := strings.SplitN(raw, " ", 2)
 		m.prefix = chunks[0][1:]
@@ -62,22 +64,22 @@ func ParseLine(raw string) (*message, error) {
 	return m, nil
 }
 
-func (m *message) Prefix() string {
+func (m *Message) Prefix() string {
 	return m.prefix
 }
 
-func (m *message) Command() string {
+func (m *Message) Command() string {
 	return m.command
 }
 
-func (m *message) Params() []string {
+func (m *Message) Params() []string {
 	return m.params
 }
 
-func (m *message) Trailing() string {
+func (m *Message) Trailing() string {
 	return m.trailing
 }
 
-func (m *message) String() string {
+func (m *Message) String() string {
 	return m.raw
 }

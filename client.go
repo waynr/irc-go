@@ -11,24 +11,26 @@ import (
 type Handler interface {
 }
 
+/*
 type Client interface {
 	Send(format string, args ...interface{})
 	RegisterHandler(handler Handler)
 }
+*/
 
-type client struct {
+type Client struct {
 	connection io.ReadWriteCloser
 	rw         *bufio.Reader
 	wr         *bufio.Writer
 	handlers   []Handler
 }
 
-func Connect(address string) (*client, error) {
+func Connect(address string) (*Client, error) {
 	connection, err := Dial(address)
 	if err != nil {
 		return nil, err
 	}
-	c := &client{
+	c := &Client{
 		connection: connection,
 		rw:         bufio.NewReader(connection),
 		wr:         bufio.NewWriter(connection),
@@ -37,14 +39,14 @@ func Connect(address string) (*client, error) {
 	return c, nil
 }
 
-func (c *client) Send(format string, args ...interface{}) {
+func (c *Client) Send(format string, args ...interface{}) {
 	fmt.Fprintf(c.connection, format, args...)
 	if !strings.HasSuffix(format, "\r\n") {
 		fmt.Fprint(c.connection, "\r\n")
 	}
 }
 
-func (c *client) ReadMessage() (*message, error) {
+func (c *Client) ReadMessage() (*Message, error) {
 	rd := textproto.NewReader(c.rw)
 	line, err := rd.ReadLine()
 	if err != nil {
