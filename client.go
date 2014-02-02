@@ -9,12 +9,14 @@ import (
 )
 
 type Handler interface {
+	HandleMessage(*Message, chan *Client) (err error)
 }
 
 /*
 type Client interface {
 	Send(format string, args ...interface{})
 	RegisterHandler(handler Handler)
+	GetHandlers() (handlers []Handler)
 }
 */
 
@@ -53,6 +55,14 @@ func (c *Client) ReadMessage() (*Message, error) {
 		return nil, err
 	}
 	return ParseLine(line)
+}
+
+func (c *Client) RegisterHandler(handler Handler) {
+	c.handlers = append(c.handlers, handler)
+}
+
+func (c *Client) GetHandlers() ([]Handler) {
+	return c.handlers
 }
 
 /*
