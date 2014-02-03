@@ -21,20 +21,20 @@ var (
 
 func main() {
 	flag.Parse()
-	c, err := irc.Connect(*address)
+	c, err := irc.Connect(*address, *verbose)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	c.Send("NICK %s", *nick)
-	c.Send("USER %s * * :...", *name)
+	c.SendImmediate("NICK %s", *nick)
+	c.SendImmediate("USER %s * * :...", *name)
 	time.Sleep(time.Millisecond * 10)
 
 	for _, name := range flag.Args() {
 		if !strings.HasPrefix(name, "#") {
 			name = "#" + name
 		}
-		c.Send("JOIN %s", name)
+		c.SendImmediate("JOIN %s", name)
 	}
 
 	// read data from stdin and send it through the wire
@@ -49,7 +49,7 @@ func main() {
 			if len(line) == 0 {
 				continue
 			}
-			c.Send(line)
+			c.SendImmediate(line)
 		}
 	}()
 
@@ -72,13 +72,13 @@ Some basics:
 			return
 		}
 		if message.Command() == "PING" {
-			c.Send("PONG %s", message.Trailing())
+			c.SendImmediate("PONG %s", message.Trailing())
 		}
 
 		if message.Command() == "PRIVMSG" {
 			if strings.HasPrefix(message.Trailing(), *nick) {
 				text := message.Trailing()[len(*nick):]
-				c.Send("PRIVMSG %s :echo! \"%s\"", message.Params()[0], text)
+				c.SendImmediate("PRIVMSG %s :echo! \"%s\"", message.Params()[0], text)
 			}
 		}
 
