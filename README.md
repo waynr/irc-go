@@ -1,6 +1,6 @@
 IRC
 ===
-
+[![irc-go GoDoc](https://godoc.org/github.com/waynr/irc-go?status.png)](https://godoc.org/github.com/waynr/irc-go)
 
 Go-IRC is tiny IRC library which additionally supports concurrent writes from
 multiple Handlers to the same conneciton object. Please see the
@@ -8,4 +8,3 @@ multiple Handlers to the same conneciton object. Please see the
 use this library. Other useful sources of information include:
 
 * How to use irc: [rfc1459](http://tools.ietf.org/html/rfc1459)
-* [![irc-go GoDoc](https://godoc.org/github.com/waynr/irc-go?status.png)](https://godoc.org/github.com/waynr/irc-go)
