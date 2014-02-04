@@ -8,6 +8,4 @@ multiple Handlers to the same conneciton object. Please see the
 use this library. Other useful sources of information include:
 
 * How to use irc: [rfc1459](http://tools.ietf.org/html/rfc1459)
-* [API documentation](http://godoc.org/github.com/waynr/irc-go)
-
-
+* [![irc-go GoDoc](https://godoc.org/github.com/waynr/irc-go?status.png)](https://godoc.org/github.com/waynr/irc-go)
