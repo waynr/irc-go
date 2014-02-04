@@ -90,7 +90,7 @@ func (c *Client) send(message *Message) {
 }
 
 // Synchronize access to connection using MessageChan channel.
-func (c *Client) Send(format string, args ...interface{}) {
+func (c *Client) Queue(format string, args ...interface{}) {
 	raw := fmt.Sprintf(format, args...)
 
 	if !strings.HasSuffix(raw, "\r\n") {
@@ -104,7 +104,7 @@ func (c *Client) Send(format string, args ...interface{}) {
 
 // Provide legacy interface for compatibility with echobot and managing connection sequence
 // timing issues.
-func (c *Client) SendImmediate(format string, args ...interface{}) {
+func (c *Client) Send(format string, args ...interface{}) {
 	fmt.Fprintf(c.connection, format, args...)
 	if !strings.HasSuffix(format, "\r\n") {
 		fmt.Fprint(c.connection, "\r\n")
@@ -136,7 +136,7 @@ func (client *Client) Initialize(ch chan *Message) (err error) {
 
 func (client *Client) HandleMessage(message *Message) (err error) {
 	if message.Command() == "PING" {
-		client.Send("PONG %s", message.Trailing())
+		client.Queue("PONG %s", message.Trailing())
 	}
 
 	if client.verbose {
@@ -149,7 +149,7 @@ func (client *Client) HandleMessage(message *Message) (err error) {
 /*
 	switch msg.Command {
 	case "PING":
-		c.Send("PONG %s\r\n", msg.Trailing)
+		c.Queue("PONG %s\r\n", msg.Trailing)
 	case "JOIN":
 		for _, name := range strings.Split(msg.Params[0], ",") {
 			c.channels[name] = name
