@@ -30,7 +30,8 @@ type Handler interface {
 	HandleMessage(*Message) (err error)
 }
 
-// IRC message format:
+// Message is a struct representing a go message according to
+// http://tools.ietf.org/html/rfc1459.html#section-2.3.1
 //
 type Message struct {
 	raw      string

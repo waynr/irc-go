@@ -167,7 +167,7 @@ func (c *Connection) GetHandlers() (handlers []Handler) {
 	return c.handlers
 }
 
-// Intitialize currently does nothing, but exists as a way to allow Connection
+// Initialize currently does nothing, but exists as a way to allow Connection
 // objects to be treated as Handler's
 //
 func (c *Connection) Initialize(ch chan *Message) (err error) {
