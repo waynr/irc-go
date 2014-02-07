@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/husio/go-irc"
+	"github.com/waynr/irc-go"
 )
 
 var (
@@ -22,13 +22,13 @@ var (
 func main() {
 	flag.Parse()
 
-	client, err := irc.Connect(*address, *verbose)
+	c, err := irc.Connect(*address, *verbose)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	client.Send("NICK %s", *nick)
-	client.Send("USER %s * * :...", *name)
+	c.Send("NICK %s", *nick)
+	c.Send("USER %s * * :...", *name)
 
 	time.Sleep(time.Millisecond *10)
 
@@ -36,25 +36,25 @@ func main() {
 		if !strings.HasPrefix(name, "#") {
 			name = "#" + name
 		}
-		client.Queue("JOIN %s", name)
+		c.Queue("JOIN %s", name)
 	}
 
 	// begin handling Stdin
-	go handleStdin(client)
+	go handleStdin(c)
 
 	// register echo handler
-	client.RegisterHandler(&echoHandler{})
+	c.RegisterHandler(&echoHandler{})
 
 	// pass channels to registered handlers for handling
-	for _, handler := range client.GetHandlers() {
-		handler.Initialize(client.MessageChan)
+	for _, handler := range c.GetHandlers() {
+		handler.Initialize(c.MessageChan)
 	}
 
-	client.Serve()
+	c.Serve()
 }
 
 // takes input from terminal and queues to be sent to server
-func handleStdin(client *irc.Client) {
+func handleStdin(c *irc.Connection) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		line, err := reader.ReadString('\n')
@@ -65,7 +65,7 @@ func handleStdin(client *irc.Client) {
 		if len(line) == 0 {
 			continue
 		}
-		client.Queue(line)
+		c.Queue(line)
 	}
 }
 

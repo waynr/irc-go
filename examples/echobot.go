@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/husio/go-irc"
+	"github.com/waynr/irc-go"
 )
 
 var (
