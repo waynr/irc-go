@@ -23,7 +23,8 @@ var (
 // chan *Message passed in through the Initialize method.
 //
 type Handler interface {
-	// Used by irc.Connection to provide access to its chan *Message
+	// Used by irc.Connection to provide access to its chan *Message when
+	// registering a new Handler with RegisterHandler.
 	Initialize(chan *Message) (err error)
 
 	// Used by irc.Connection to pass in messages from the server.
