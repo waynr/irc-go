@@ -6,22 +6,32 @@ import (
 )
 
 var (
+	// Used by irc.ParseLine to indicate that the given "raw" string does not
+	// conform to RFC1459.
 	ErrInvalidmessage = errors.New("invalid message format")
+	// Used by irc.ParseLine to indicate error condition in which no command was
+	// found in the given "raw" message.
 	ErrUnknownCommand = errors.New("unknown command")
 )
 
+// Handler interface provides a means for users to implement "handlers" for
+// irc.Message objects. This interface is used by irc.Connection to dispatch
+// messages to custom handlers. 
+//
+// The user may choose to do as she wishes with these messages or to respond in
+// her own time to the underlying Server by queuing messages through the
+// chan *Message passed in through the Initialize method.
+//
+type Handler interface {
+	// Used by irc.Connection to provide access to its chan *Message
+	Initialize(chan *Message) (err error)
+
+	// Used by irc.Connection to pass in messages from the server.
+	HandleMessage(*Message) (err error)
+}
+
 // IRC message format:
 //
-// :<prefix> <command> <params> :<trailing>
-/*
-type Message interface {
-	Prefix() string
-	Command() string
-	Params() []string
-	Trailing() string
-}
-*/
-
 type Message struct {
 	raw      string
 	prefix   string
@@ -30,6 +40,22 @@ type Message struct {
 	trailing string
 }
 
+// When sending messages, <prefix> is automatically determined by the receiving
+// end of the connection based on available TCP/IP and DNS connection
+// information.  ParseLine takes this into account by making the ":<prefix> "
+// optional.
+//
+// When used to construct messages, the raw string must follow the guidelines in
+// RFC1459: http://tools.ietf.org/html/rfc1459
+//
+// Please note that it is NOT the user's responsibility to deal with
+// prefixes--this is determined upon arrival at the IRC server or client.
+// Therefore, for the purpose of this library please use the following format
+// for "raw" strings, where <command> is a valied ASCII command as described in
+// the RFC1459.
+//
+// <command>[ <params> [:<trailing>]]
+//
 func ParseLine(raw string) (*Message, error) {
 	raw = strings.TrimSpace(raw)
 	m := &Message{raw: raw}
@@ -64,22 +90,33 @@ func ParseLine(raw string) (*Message, error) {
 	return m, nil
 }
 
+// Provide read-only public access to the internal IRC "prefix".
+//
 func (m *Message) Prefix() string {
 	return m.prefix
 }
 
+// Provide read-only public access to the internal IRC "command".
+//
 func (m *Message) Command() string {
 	return m.command
 }
 
+// Provide read-only public access to the internal IRC "params".
+//
 func (m *Message) Params() []string {
 	return m.params
 }
 
+// Provide read-only public access to the internal IRC "trailing".
+//
 func (m *Message) Trailing() string {
 	return m.trailing
 }
 
+// Provide read-only public access to the internal IRC raw representation of the
+// message.
+//
 func (m *Message) String() string {
 	return m.raw
 }
