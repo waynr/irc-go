@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	// Used by irc.ParseLine to indicate that the given "raw" string does not
-	// conform to RFC1459.
-	ErrInvalidmessage = errors.New("invalid message format")
-	// Used by irc.ParseLine to indicate error condition in which no command was
+	// ErrInvalidMessage is used by irc.ParseLine to indicate that the given
+	// "raw" string does not conform to RFC1459.
+	ErrInvalidMessage = errors.New("invalid message format")
+	// ErrUnknownCommand by irc.ParseLine to indicate error condition in which no command was
 	// found in the given "raw" message.
 	ErrUnknownCommand = errors.New("unknown command")
 )
@@ -40,6 +40,8 @@ type Message struct {
 	trailing string
 }
 
+// ParseLine is used to create irc.Message objects out of raw strings.
+//
 // When sending messages, <prefix> is automatically determined by the receiving
 // end of the connection based on available TCP/IP and DNS connection
 // information.  ParseLine takes this into account by making the ":<prefix> "
@@ -90,31 +92,31 @@ func ParseLine(raw string) (*Message, error) {
 	return m, nil
 }
 
-// Provide read-only public access to the internal IRC "prefix".
+// Prefix provides read-only public access to the internal IRC "prefix".
 //
 func (m *Message) Prefix() string {
 	return m.prefix
 }
 
-// Provide read-only public access to the internal IRC "command".
+// Command provides read-only public access to the internal IRC "command".
 //
 func (m *Message) Command() string {
 	return m.command
 }
 
-// Provide read-only public access to the internal IRC "params".
+// Params provides read-only public access to the internal IRC "params".
 //
 func (m *Message) Params() []string {
 	return m.params
 }
 
-// Provide read-only public access to the internal IRC "trailing".
+// Trailing provides read-only public access to the internal IRC "trailing".
 //
 func (m *Message) Trailing() string {
 	return m.trailing
 }
 
-// Provide read-only public access to the internal IRC raw representation of the
+// String provides read-only public access to the internal IRC raw representation of the
 // message.
 //
 func (m *Message) String() string {

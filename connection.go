@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Represents a connection, as returned by net.Dial(), to an IRC server with
+// Connection represents a connection, as returned by net.Dial(), to an IRC server with
 // methods for synchronizing access.
 //
 type Connection struct {
@@ -67,7 +67,13 @@ func (c *Connection) receiveLoop() {
 	}
 }
 
-// Manage MessageChan and Terminate channels in a forever loop.
+// Serve initiates the incoming message handling loop to pass incoming Message
+// instances to all available Message handlers registered with the Connection
+// object.
+//
+// Serve also initiates the loop which, after Serve is run, synchronizes all
+// outgoing messages passed through the Connection.MessageChan channel by
+// handlers.
 //
 func (c *Connection) Serve() {
 	c.serving = true
@@ -90,7 +96,7 @@ func (c *Connection) Serve() {
 	}
 }
 
-// Put a message on the wire.
+// Send is used internall to put a message on the wire.
 //
 func (c *Connection) send(message *Message) {
 	fmt.Fprintf(c.connection, "%s %s :%s\r\n", message.command,
@@ -101,7 +107,7 @@ func (c *Connection) send(message *Message) {
 	}
 }
 
-// Synchronize access to the Connection using MessageChan channel.
+// Queue synchronizes access to the given Connection using MessageChan channel.
 //
 func (c *Connection) Queue(format string, args ...interface{}) {
 	raw := fmt.Sprintf(format, args...)
@@ -115,13 +121,14 @@ func (c *Connection) Queue(format string, args ...interface{}) {
 	c.MessageChan <- message
 }
 
-// While the Connection is in a "serving" state, that is to say messages are
-// being synchronously read from its MessageChan, Send() becomes an alias for the
-// Queue() method
+// Send is intended to be used by clients to pass IRC messages to the server
+// represented by Connection. This happens directly whenever the loops initiated
+// by Serve are not running--that is to say, a call to Send will directly pass
+// the given parameters to the underlying connection object through fmt.Fprintf
 //
-// While the Connection is static, that is to say, it is not synchronizing write
-// access to the MessageChan, it writes directly to the underlying connection
-// object.
+// After the loops initiated by Serve have begun, Send becomes and alias for
+// Queue in order to synchronize access to the underlying connection object with
+// whatever handlers may be registered.
 //
 func (c *Connection) Send(format string, args ...interface{}) {
 	if c.serving {
@@ -134,9 +141,8 @@ func (c *Connection) Send(format string, args ...interface{}) {
 	}
 }
 
-// When the Connection is not serving, ReadMessage allows direct access to a
-// bufio.Reader. It returns an irc.Message representing the next line in the
-// incoming buffer.
+// ReadMessage allows direct access to a bufio.Reader. It returns an irc.Message
+// representing the next line in the incoming buffer.
 //
 func (c *Connection) ReadMessage() (*Message, error) {
 	rd := textproto.NewReader(c.rw)
@@ -147,26 +153,30 @@ func (c *Connection) ReadMessage() (*Message, error) {
 	return ParseLine(line)
 }
 
-// Adds a Handler intended to accept incoming messages from the IRC server
-// represented by the irc.Connection.
+// RegisterHandler adds a Handler intended to accept incoming messages from the
+// IRC server represented by the Connection.
 //
 func (c *Connection) RegisterHandler(handler Handler) {
 	c.handlers = append(c.handlers, handler)
 }
 
-// Returns the slice representing the Handlers currently handling messages from
-// the irc.Connection.
+// GetHandlers returns a slice representing the Handlers currently handling
+// messages from the Connection.
 //
 func (c *Connection) GetHandlers() (handlers []Handler) {
 	return c.handlers
 }
 
+// Intitialize currently does nothing, but exists as a way to allow Connection
+// objects to be treated as Handler's
+//
 func (c *Connection) Initialize(ch chan *Message) (err error) {
 	return nil
 }
 
-// Connection is a Handler. This provides a convenient place way to handle
-// details of IRC protocol such as server PING commands.
+// HandleMessage provides a convenient way to handle details of IRC protocol
+// such as server PING commands, passed in by the Connection object's incoming
+// message handling loop.
 //
 func (c *Connection) HandleMessage(message *Message) (err error) {
 	if message.Command() == "PING" {
